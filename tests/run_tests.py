@@ -16,7 +16,11 @@ into an empty temporary directory, runs the assembler there and inspects
 the exit status, the console output and the files that were produced.
 
 Usage:
-  run_tests.py [--galasm PATH] [-k SUBSTRING] [--update] [-v]
+  run_tests.py [--galasm PATH] [--legacy] [-k SUBSTRING] [--update] [-v]
+
+--legacy skips the cases marked "legacy_skip": behaviour where the
+specification deliberately improves on GALasm 2.1 (see
+spec/LEGACY-DIFFERENCES.md).  Use it when testing the GALasm 2.1 code.
 
 --update writes any missing expected.* files of successful cases from the
 output of the assembler under test (existing files are never overwritten;
@@ -70,7 +74,9 @@ def load_case(name):
 def run_assembler(galasm, case, workdir):
     src = os.path.join(case["path"], "input.pld")
     if os.path.exists(src):
-        shutil.copyfile(src, os.path.join(workdir, case["input"]))
+        dest = os.path.join(workdir, case["input"])
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.copyfile(src, dest)
     args = [a.replace("{input}", case["input"]) for a in case["args"]]
     proc = subprocess.run(
         [galasm] + args,
@@ -161,12 +167,15 @@ def check_case(galasm, case, update=False):
                           % (sorted(outputs) or "none", sorted(case["outputs"]) or "none"))
 
     if "error_line" in case:
+        allowed = case["error_line"]
+        if not isinstance(allowed, list):
+            allowed = [allowed]
         m = re.search(r"Error in line (\d+):", console)
         if not m:
             raise CaseFailure("no 'Error in line N:' message\n%s" % console)
-        if int(m.group(1)) != case["error_line"]:
-            raise CaseFailure("error reported in line %s, expected line %d\n%s"
-                              % (m.group(1), case["error_line"], console))
+        if int(m.group(1)) not in allowed:
+            raise CaseFailure("error reported in line %s, expected line %s\n%s"
+                              % (m.group(1), " or ".join(map(str, allowed)), console))
 
     if "error_pin" in case:
         m = re.search(r"Error, pin (\d+):", console)
@@ -175,6 +184,10 @@ def check_case(galasm, case, update=False):
         if int(m.group(1)) != case["error_pin"]:
             raise CaseFailure("error reported for pin %s, expected pin %d\n%s"
                               % (m.group(1), case["error_pin"], console))
+
+    for text in case.get("must_mention", []):
+        if text not in console:
+            raise CaseFailure("console output does not mention %r\n%s" % (text, console))
 
     crlf = case.get("crlf", False)
     for ext in case["outputs"]:
@@ -202,6 +215,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--galasm", default=DEFAULT_GALASM,
                     help="assembler executable to test (default: src/galasm)")
+    ap.add_argument("--legacy", action="store_true",
+                    help="skip cases where the spec improves on GALasm 2.1")
     ap.add_argument("-k", dest="pattern", default="",
                     help="only run cases whose name contains this text")
     ap.add_argument("--update", action="store_true",
@@ -220,10 +235,16 @@ def main(argv=None):
     names = sorted(n for n in os.listdir(CASES_DIR)
                    if os.path.isfile(os.path.join(CASES_DIR, n, "case.json"))
                    and opts.pattern in n)
-    failures = 0
+    failures = skipped = 0
     for name in names:
         try:
-            check_case(galasm, load_case(name), opts.update)
+            case = load_case(name)
+            if opts.legacy and "legacy_skip" in case:
+                skipped += 1
+                if opts.verbose:
+                    print("SKIP %s: %s" % (name, case["legacy_skip"]))
+                continue
+            check_case(galasm, case, opts.update)
             if opts.verbose:
                 print("PASS %s" % name)
         except CaseFailure as e:
@@ -233,7 +254,8 @@ def main(argv=None):
             failures += 1
             print("FAIL %s: %s: %s" % (name, type(e).__name__, e))
 
-    print("%d passed, %d failed" % (len(names) - failures, failures))
+    print("%d passed, %d failed, %d skipped"
+          % (len(names) - failures - skipped, failures, skipped))
     return 1 if failures else 0
 
 

@@ -1,0 +1,5 @@
+{
+  "description": "A source file with CR LF line endings assembles exactly like the LF version; CR is not part of the signature",
+  "expect": "success",
+  "legacy_skip": "GALasm 2.1 behaves differently; see spec/LEGACY-DIFFERENCES.md"
+}

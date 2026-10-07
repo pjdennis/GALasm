@@ -1,5 +1,0 @@
-{
-  "description": "For a pin declared negated, .E must also be written negated",
-  "expect": "error",
-  "error_line": 7
-}

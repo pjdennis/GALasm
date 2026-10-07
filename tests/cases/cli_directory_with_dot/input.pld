@@ -1,8 +1,8 @@
 GAL16V8
-ERRTEST
+OPTIONS
 A B C D E F G H I GND
 J K L M N O P Q R VCC
-
-R.T = A
-/R.E = B
+R = A * B + /C
+Q.T = D
+Q.E = E
 DESCRIPTION

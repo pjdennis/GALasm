@@ -1,5 +1,0 @@
-{
-  "description": "GAL20RA10: negated .CLK",
-  "expect": "error",
-  "error_line": 7
-}

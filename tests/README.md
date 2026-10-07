@@ -17,7 +17,14 @@ cd src && make && make check                 # build, then run the suite
 python3 tests/run_tests.py                   # test src/galasm
 python3 tests/run_tests.py --galasm path/to/other-assembler
 python3 tests/run_tests.py -k 22v10 -v       # only cases whose name contains "22v10"
+python3 tests/run_tests.py --legacy          # skip cases where the spec improves on GALasm 2.1
 ```
+
+The suite tests the behaviour in `spec/GALASM-SPEC.md`.  A few cases
+cover deliberate improvements over GALasm 2.1, listed in
+`spec/LEGACY-DIFFERENCES.md`.  Those cases carry a `legacy_skip` note,
+and `--legacy` skips them; `make check` in `src/` uses it for the
+GALasm 2.1 code.
 
 The runner exits with status 0 when every case passes.
 
@@ -38,11 +45,13 @@ Each directory in `cases/` is one case:
 | `description` | One line saying what the case covers |
 | `expect` | `success`: exit status 0 and the expected files; `error`: non-zero exit status and no output files; `usage`: non-zero exit status and no output files; `help`: exit status 0 and no output files |
 | `args` | Command-line arguments; `{input}` is replaced by the input file name. Default `["{input}"]` |
-| `input` | Name to give the copied input file. Default `input.pld` |
+| `input` | Name to give the copied input file; may include a directory. Default `input.pld` |
 | `outputs` | Output extensions that must be produced, and no others. Default: all four for `success`, none otherwise |
-| `error_line` | The console output must contain `Error in line N:` with this N |
+| `error_line` | The console output must contain `Error in line N:` with this N, or with one of the Ns if a list is given |
 | `error_pin` | The console output must contain `Error, pin N:` with this N |
 | `crlf` | The `.jed` file must use CR LF line endings throughout |
+| `must_mention` | Strings the console output must contain |
+| `legacy_skip` | Why GALasm 2.1 fails this case; `--legacy` skips it |
 
 ## How outputs are compared
 
@@ -57,7 +66,9 @@ The console output is only checked for the `Error in line N:` and
 ## Where the expectations come from
 
 * **Inputs.** Every `input.pld` was written from scratch for this suite. None is taken from the GALer or GALasm distributions.
-* **Expected outputs.** These were captured with `run_tests.py --update` from GALasm 2.1 as maintained at <https://github.com/pjdennis/GALasm> (commit `1b5ef79`). The one exception is `16v8_hand_derived`, whose expected files were worked out by hand from the device architecture and the JEDEC format. That case cross-checks the captured outputs.
+* **Expected outputs.** These were captured with `run_tests.py --update` from GALasm 2.1 as maintained at <https://github.com/pjdennis/GALasm> (commit `1b5ef79`). There are two exceptions:
+  * `16v8_hand_derived`, whose expected files were worked out by hand from the device architecture and the JEDEC format. That case cross-checks the captured outputs.
+  * The `legacy_skip` success cases, whose expected files come from GALasm 2.1 assembling an equivalent input it accepts. For example, the CR LF source uses its LF twin's output.
 * **Error line numbers.** These were predicted by hand first and then confirmed against the reference.
 
 `--update` only writes expected files that are missing. To regenerate one

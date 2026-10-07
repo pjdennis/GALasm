@@ -1,5 +1,0 @@
-{
-  "description": ".E with a negated left-hand side",
-  "expect": "error",
-  "error_line": 7
-}

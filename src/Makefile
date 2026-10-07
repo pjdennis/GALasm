@@ -14,7 +14,7 @@ $(TARGET): $(OBJS)
 	gcc $(LDFLAGS) -o $@ $(OBJS)
 
 check: $(TARGET)
-	python3 ../tests/run_tests.py --galasm ./$(TARGET)
+	python3 ../tests/run_tests.py --legacy --galasm ./$(TARGET)
 
 clean:
 	-rm $(OBJS)

@@ -1,5 +1,8 @@
 {
-  "description": "Errors found while classifying outputs are reported before mode-dependent errors earlier in the file",
+  "description": "With several errors in a file, any one of them may be reported",
   "expect": "error",
-  "error_line": 8
+  "error_line": [
+    6,
+    8
+  ]
 }

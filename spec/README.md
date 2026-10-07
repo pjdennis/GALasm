@@ -3,7 +3,8 @@
 This directory holds a behavioural specification of the GALasm assembler,
 written so that a new, MIT-licensed implementation can be built without
 reference to the existing source code.  The conformance suite in `../tests/`
-is its executable counterpart.
+is its executable counterpart.  `LEGACY-DIFFERENCES.md` lists the few
+places where the specification deliberately improves on GALasm 2.1.
 
 Everything in this directory is under the MIT license (see `LICENSE`).
 

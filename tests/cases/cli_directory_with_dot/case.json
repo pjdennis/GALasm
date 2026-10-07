@@ -1,0 +1,6 @@
+{
+  "description": "Output names are derived from the file name only, not from directory names",
+  "expect": "success",
+  "input": "dir.v2/design",
+  "legacy_skip": "GALasm 2.1 behaves differently; see spec/LEGACY-DIFFERENCES.md"
+}

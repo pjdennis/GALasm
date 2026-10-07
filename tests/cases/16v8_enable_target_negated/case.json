@@ -1,0 +1,5 @@
+{
+  "description": "A negation sign on the target of .E is ignored",
+  "expect": "success",
+  "legacy_skip": "GALasm 2.1 behaves differently; see spec/LEGACY-DIFFERENCES.md"
+}

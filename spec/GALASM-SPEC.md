@@ -44,10 +44,17 @@ exceptions:
 * the transmission checksum, which changes when those lines do (§9.5);
 * native line endings on platforms whose text files use CR LF.
 
+The output file *names* can also differ, in the one case described in
+`LEGACY-DIFFERENCES.md` §4.
+
 For every input the reference rejects, a conforming implementation MUST
-also reject it.  It MUST report the same first error at the same line
-(§8; the line is not specified for unexpected end of file), and MUST NOT
-write any output file.
+also reject it and MUST NOT write any output file.  The exceptions are
+the deliberate relaxations listed in `LEGACY-DIFFERENCES.md`, for example
+source files with CR LF line endings, which this specification accepts.
+
+This document describes the intended behaviour only.  Where GALasm 2.1
+differs, the difference and the reason are recorded in
+`LEGACY-DIFFERENCES.md`, not here.
 
 ---
 
@@ -100,27 +107,23 @@ On a usage error the implementation MUST print a usage message, MUST NOT
 assemble anything, and MUST exit with a non-zero status (the reference
 uses 5).
 
-*(Non-normative.)* The reference also accepts some option groups written
-without a leading `-` when more arguments follow (for example
-`galasm sa file.pld`).  This accident does not need to be reproduced.
-
 ### 2.2 Output files
 
 The output files go next to the input file.  Their names are the input
 path with its extension replaced:
 
-* If the file name contains a `.`, everything from the last `.` onwards is
-  replaced by `.jed`, `.fus`, `.pin` or `.chp`.  So `my.design.pld` gives
-  `my.design.jed`.
-* Otherwise the extension is appended, so `design` gives `design.jed`.
+* Only the file name, the last component of the path, is examined.
+  Directory names are never changed.
+* If the file name contains a `.`, everything from its last `.` onwards
+  is replaced by `.jed`, `.fus`, `.pin` or `.chp`.  So `my.design.pld`
+  gives `my.design.jed`.
+* Otherwise the extension is appended, so `design` gives `design.jed`, and
+  `dir.v2/design` gives `dir.v2/design.jed`.
 
 The `.jed` file is always written.  The other three are written unless
-suppressed by an option.  If assembly fails, no file is written.
-
-*(Non-normative.)* The reference looks for the last `.` anywhere in the
-argument, including in directory names, so `dir.v2/file` would give
-`dir.jed`.  Implementations SHOULD only consider the final path
-component.  The suite does not test paths with directories.
+suppressed by an option.  If assembly fails, no file is written.  If an
+output file cannot be written, the implementation MUST report it and exit
+with a non-zero status.
 
 ### 2.3 Exit status
 
@@ -130,6 +133,9 @@ component.  The suite does not test paths with directories.
 | Usage error | non-zero (reference: 5) |
 | Source error (§8) | non-zero (reference: 255) |
 | Input file cannot be opened or read, or out of memory | non-zero (reference: 254) |
+
+If the input file cannot be opened or read, the error message MUST say
+so and MUST include the file name as given on the command line.
 
 ---
 
@@ -167,25 +173,23 @@ lines 1 and 2.
 
 * **Line numbers** start at 1.  Every LF ends a line.
 
+**Line endings.** Both LF and CR LF line endings MUST be accepted, and
+must give identical results.  A CR immediately before an LF is part of
+the line ending, everywhere in the file, including lines 1 and 2.
+
 ### 3.2 Line 1: device type
 
 The file MUST begin, at its very first byte, with one of `GAL16V8`,
 `GAL20V8`, `GAL22V10` or `GAL20RA10`.  The match is case-sensitive.  The
-next byte MUST be a space, TAB or LF.  Otherwise the file is rejected
-with error E1, reported at line 1.
+next byte MUST be a space, TAB or line ending.  Otherwise the file is
+rejected with error E1, reported at line 1.
 
 Anything else on line 1 is ignored.
-
-*(Non-normative.)* Because of this rule, the reference rejects files with
-CR LF line endings on systems where text files are not translated
-(Linux, macOS): the byte after the type is CR.  On Windows the C runtime
-removes the CR and such files are accepted.  §12 recommends accepting
-CR here.
 
 ### 3.3 Line 2: signature
 
 The signature is taken from the bytes at the start of line 2, up to the
-first LF or TAB or 8 bytes, whichever comes first.  Spaces and every
+first line ending or TAB or 8 bytes, whichever comes first.  Spaces and every
 other byte are part of the signature, including `;`.  The rest of line 2
 is ignored.
 
@@ -244,10 +248,6 @@ If the file ends before all pins are declared, report E2.
 `NC` (not connected) may be declared on any number of pins.  Pins named
 `NC` cannot be used in equations.
 
-*(Non-normative.)* Check 10 compares the declared name, so `/AR` is not
-rejected in the reference.  It is harmless because such a pin could
-never be used.
-
 ---
 
 ## 5. Equations
@@ -276,7 +276,9 @@ or          := "+" | "#"
   case-sensitive.
 * If `DESCRIPTION` is the first token after the pin declarations, report
   E33 at that line.
-* If the file ends before `DESCRIPTION`, report E2.
+* If the file ends before `DESCRIPTION`, report E2.  Reaching the end of
+  the input at any point is always reported this way; an implementation
+  MUST NOT read beyond the end of the input.
 
 ### 5.2 Semantics
 
@@ -364,8 +366,8 @@ The equation then acts on the target OLMC according to its suffix:
 | Suffix | Action |
 |---|---|
 | none, `.T`, `.R` | If the OLMC is *unused* or *input*, it becomes an output with the polarity from §5.2.  The kind is *undecided* (no suffix), *tristate* (`.T`) or *registered* (`.R`).  If it is already an output: E40 for AR/SP, E16 otherwise. |
-| `.E` | In this order: inverted target polarity → E19; the OLMC already has an `.E` → E22; the OLMC is unused or input → E17; registered output on a GAL16V8/20V8 → E23; undecided output (defined without suffix) → E24.  Otherwise record that the OLMC has an enable equation. |
-| `.CLK` / `.ARST` / `.APRST` | In this order: inverted target polarity → E19; the OLMC is unused → E42 / E43 / E44; this suffix already given for this OLMC → E45 / E46 / E47; the OLMC is not a registered output → E48.  Otherwise record it.  (An OLMC in the *input* state passes the "unused" check and then fails with E48.) |
+| `.E` | In this order: the OLMC already has an `.E` → E22; the OLMC is unused or input → E17; registered output on a GAL16V8/20V8 → E23; undecided output (defined without suffix) → E24.  Otherwise record that the OLMC has an enable equation. |
+| `.CLK` / `.ARST` / `.APRST` | In this order: the OLMC is unused → E42 / E43 / E44; this suffix already given for this OLMC → E45 / E46 / E47; the OLMC is not a registered output → E48.  Otherwise record it.  (An OLMC in the *input* state passes the "unused" check and then fails with E48.) |
 
 **Terms of an equation.** Each term must be valid:
 * E11 if it is not a declared pin name;
@@ -375,12 +377,13 @@ The equation then acts on the target OLMC according to its suffix:
 A term that refers to an OLMC pin marks that OLMC as *fed back*.  If the
 OLMC is still *unused*, it becomes *input*.
 
-"Inverted target polarity" means the combined polarity of §5.2.  So for
-a pin declared `/R`, `R.E = …` is E19 and `/R.E = …` is accepted.
+A negation sign on the target of an `.E`, `.CLK`, `.ARST` or `.APRST`
+equation is allowed and ignored.  These equations always describe the
+condition that enables, clocks, resets or presets, so `R.E = A` and
+`/R.E = A` mean the same.  The same holds whether or not the pin was
+declared with a negation sign.
 
-The `=` is checked after all of the above target checks: if the token
-after the target (and suffix) is not `=`, report E14.  So `A B`, with `A`
-an input-only pin, reports E15, not E14.
+If the token after the target (and suffix) is not `=`, report E14.
 
 ### 6.2 Mode of the GAL16V8 and GAL20V8
 
@@ -642,7 +645,7 @@ implementation.  The wording of messages is up to the implementation.
 | E16 | Output defined more than once |
 | E17 | `.E` before the output is defined |
 | E18 | GAL22V10: `AR` or `SP` declared as a pin name |
-| E19 | `.E`, `.CLK`, `.ARST` or `.APRST` with inverted target polarity (§6.1) |
+| E19 | Not used: a negated control-equation target is no longer an error (§6.1) |
 | E20 | GAL16V8 complex mode: pin 12 or 19 used as a term |
 | E21 | GAL20V8 complex mode: pin 15 or 22 used as a term |
 | E22 | `.E` defined twice for one output |
@@ -673,25 +676,15 @@ implementation.  The wording of messages is up to the implementation.
 | E47 | `.APRST` defined twice for one output |
 | E48 | `.CLK`, `.ARST` or `.APRST` for an output that is not registered |
 
-### 8.2 Which error is reported first
+### 8.2 Files with more than one error
 
-The checks happen in three phases.  The first error in the earliest
-phase wins.
+Assembly stops at the first error found.  When a source file contains
+more than one error, which one is reported is not specified.
 
-**Phase A: read and classify.** This covers:
-* lines 1 and 2;
-* the pin declarations (§4);
-* the syntax and classification of every equation in file order: E11–E19,
-  E22–E24, E31–E36, E39, E40, E42–E48, plus E2 and E33.
-
-**Phase B: write the array.** Every equation in file order, with the
-term checks of §7.4: E20, E21, E25–E30, E37, E38.
-
-**Phase C: clean-up.** E41.
-
-So a phase-A error late in the file is reported in preference to a
-phase-B error earlier in the file.  A phase-B error is reported even when
-the equation that set the mode comes later.
+*(Non-normative.)* Some checks need the GAL16V8/20V8 mode (E20, E21,
+E26, E27), and the mode depends on every equation in the file.  So these
+checks can only be completed after all equations have been classified.
+E41 can only be checked once every equation has been seen.
 
 ### 8.3 Error report format and line numbers
 
@@ -714,7 +707,7 @@ these two prefixes.
 | E1 | line 1 |
 | Pin declaration errors | the line where the offending pin name is |
 | Errors about the target name itself (E11, E12, E32) | the target name |
-| Other errors about an equation's target: suffix and classification errors (E13–E17, E19, E22–E24, E34–E36, E39, E40, E42–E48) | the first token after the target name (normally the `.` or `=`, usually on the same line) |
+| Other errors about an equation's target: suffix and classification errors (E13–E17, E22–E24, E34–E36, E39, E40, E42–E48) | the target name, or the first token after it (the `.` or `=`); in practice these are almost always on the same line |
 | Errors about a term (E11, E12, E20, E21, E25–E31, E37, E38) | the term |
 | E33 | `DESCRIPTION` |
 | E2 | unspecified; tests only require failure |
@@ -1000,40 +993,17 @@ they like.  The only requirement is that errors use the prefixes of
 
 ## 11. Behaviour this document leaves open
 
-The reference shows the following behaviour.  It is not specified here
-and not tested; implementations MAY differ:
+Implementations MAY differ from each other in:
 
-* The exact usage, help and error message texts.
-* Exit status values other than zero versus non-zero.
-* The message for a missing input file.  The reference reports "not
-  enough memory", which is misleading.
-* Behaviour on an empty input file.  The reference reads past the end of
-  its buffer, so behaviour is undefined.
-* The line number reported for unexpected end of file.
-* Handling of source bytes ≥ 0x80 inside names.
+* the exact usage, help and error message texts;
+* exit status values, beyond zero for success and non-zero for failure;
+* the line number reported for unexpected end of file;
+* which error is reported when a file contains several (§8.2);
+* handling of source bytes ≥ 0x80 inside names.
 
 ---
 
-## 12. Recommended improvements *(non-normative)*
-
-These changes would not break any test in the suite.  They would make an
-implementation more robust than the reference:
-
-1. **Accept CR before LF anywhere.** That includes the byte after the
-   device type and the end of the signature, so files with Windows line
-   endings work on every platform.
-2. **Never read past the end of the input.** At end of file, report E2
-   cleanly.
-3. **Clear message for a missing input file.** Report that the input file
-   cannot be opened, and exit with a non-zero status.
-4. **Directory names.** Only look for the extension in the final path
-   component when naming output files.
-5. **Don't leave partial output.** If an output file cannot be written,
-   report it and exit non-zero without leaving partial files behind.
-
----
-
-## 13. Glossary
+## 12. Glossary
 
 * **OLMC.** Output Logic Macrocell: the configurable output stage behind
   an output pin.
