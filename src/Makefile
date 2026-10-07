@@ -13,6 +13,9 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	gcc $(LDFLAGS) -o $@ $(OBJS)
 
+check: $(TARGET)
+	python3 ../tests/run_tests.py --galasm ./$(TARGET)
+
 clean:
 	-rm $(OBJS)
 	-rm -f *.[oa] $(TARGET) Makefile.bak
