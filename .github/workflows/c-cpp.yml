@@ -8,12 +8,26 @@ on:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: python3
+          - os: macos-latest
+            python: python3
+          - os: windows-latest
+            python: python
 
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: make
       run: cd src && make
     - name: conformance tests
-      run: cd src && make check
+      run: cd src && make check PYTHON=${{ matrix.python }}

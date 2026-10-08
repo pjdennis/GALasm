@@ -6,6 +6,7 @@ CC          = gcc
 
 CFLAGS		= -Wall -O2
 LDFLAGS		=
+PYTHON		?= python3
 
 
 all: $(TARGET)
@@ -14,7 +15,7 @@ $(TARGET): $(OBJS)
 	gcc $(LDFLAGS) -o $@ $(OBJS)
 
 check: $(TARGET)
-	python3 ../tests/run_tests.py --legacy --galasm ./$(TARGET)
+	$(PYTHON) ../tests/run_tests.py --legacy --galasm ./$(TARGET)
 
 clean:
 	-rm $(OBJS)
